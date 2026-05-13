@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Direnv / env
+.env
+.env.local
+.envrc
+
+# Logs / temp
+*.log
+*.tmp
+.cache/
+
+# Skill output artifacts (produced by critical-review / test-audit / verify-work)
+/review.md
+/test-review.md
+/verification-summary.md
+/critical-review/review.md
+/test-audit/test-review.md
+/verify-work/verification-summary.md
