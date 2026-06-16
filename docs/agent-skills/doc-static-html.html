@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doc Static HTML — Agent Skills</title>
+<meta name="description" content="The documentation generation skill — when to use, workflow, output rules.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Theme palettes */
+:root {
+  --bg:#F2EFE6; --fg:#1F2A1B; --fg-strong:#0B0F0A; --muted:#5A6B53;
+  --accent:#1E6E15; --accent-dim:#3E8A38; --warn:#7A5A00; --danger:#A22020;
+  --rule:#CFC9B8; --code-bg:#EAE6D8; --code-strip:#DAD4C1;
+}
+:root[data-theme="solarized"] {
+  --bg:#FDF6E3; --fg:#657B83; --fg-strong:#073642; --muted:#93A1A1;
+  --accent:#B58900; --accent-dim:#859900; --warn:#CB4B16; --danger:#DC322F;
+  --rule:#EEE8D5; --code-bg:#EEE8D5; --code-strip:#E4DCC4;
+}
+:root[data-theme="phosphor"] {
+  --bg:#0B0F0A; --fg:#C8E6C2; --fg-strong:#E8F3E4; --muted:#6E8A66;
+  --accent:#7CFF6F; --accent-dim:#3E8A38; --warn:#FFC857; --danger:#FF6B6B;
+  --rule:#1E2A1B; --code-bg:#0F1610; --code-strip:#16201A;
+}
+:root[data-theme="amber"] {
+  --bg:#1A1208; --fg:#F0CC9F; --fg-strong:#FFE4B5; --muted:#8C6F47;
+  --accent:#FFB000; --accent-dim:#A87400; --warn:#FF8C00; --danger:#FF5050;
+  --rule:#2A1F10; --code-bg:#1F1810; --code-strip:#261C10;
+}
+:root[data-theme="auto"] { }
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    --bg:#0B0F0A; --fg:#C8E6C2; --fg-strong:#E8F3E4; --muted:#6E8A66;
+    --accent:#7CFF6F; --accent-dim:#3E8A38; --warn:#FFC857; --danger:#FF6B6B;
+    --rule:#1E2A1B; --code-bg:#0F1610; --code-strip:#16201A;
+  }
+}
+
+/* Layout */
+*, *::before, *::after { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  font-family: "JetBrains Mono", monospace;
+  background: var(--bg); color: var(--fg);
+  margin: 0; padding: 0;
+  line-height: 1.6;
+}
+.page { max-width: 52rem; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+/* Manhead */
+.manhead {
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--rule);
+  padding: 0.5rem 0; margin-bottom: 2rem;
+  font-size: 0.8rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.manhead .controls { display: flex; align-items: center; gap: 0.75rem; }
+.manhead .left, .manhead .right { white-space: nowrap; }
+
+/* Search */
+.search { position: relative; }
+.search input {
+  font-family: inherit; font-size: 0.75rem;
+  background: var(--code-bg); color: var(--fg);
+  border: 1px solid var(--rule); border-radius: 3px;
+  padding: 0.25rem 0.5rem; width: 14rem;
+}
+.search input::placeholder { color: var(--muted); }
+.search-results {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: var(--bg); border: 1px solid var(--rule);
+  border-top: none; max-height: 20rem; overflow-y: auto;
+  z-index: 100; font-size: 0.75rem;
+}
+.search-results a {
+  display: block; padding: 0.4rem 0.5rem;
+  color: var(--fg); text-decoration: none;
+  border-bottom: 1px dashed var(--rule);
+}
+.search-results a:hover, .search-results a.active {
+  background: var(--code-bg); color: var(--accent);
+}
+.search-results .sr-page { color: var(--muted); font-size: 0.65rem; }
+
+/* Theme picker */
+.theme-picker {
+  font-family: inherit; font-size: 0.7rem;
+  background: var(--code-bg); color: var(--fg);
+  border: 1px solid var(--rule); border-radius: 3px;
+  padding: 0.15rem 0.3rem; cursor: pointer;
+}
+
+/* Title block */
+.title-block { margin-bottom: 2rem; }
+.title-block h1 {
+  font-size: 1.6rem; color: var(--fg-strong);
+  margin: 0 0 0.25rem; line-height: 1.2;
+}
+.title-block .tagline { color: var(--muted); margin: 0 0 0.5rem; font-size: 0.85rem; }
+.title-block .meta { font-size: 0.7rem; color: var(--muted); }
+.title-block .meta span + span::before { content: " · "; }
+.cursor {
+  display: inline-block; width: 0.6em; height: 1.1em;
+  background: var(--accent); margin-left: 0.1em;
+  animation: blink 1s step-end infinite; vertical-align: text-bottom;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* TOC */
+.toc {
+  border: 1px solid var(--rule); padding: 1rem 1.25rem;
+  margin-bottom: 2rem; font-size: 0.8rem;
+}
+.toc-title {
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); margin-bottom: 0.5rem; font-size: 0.7rem;
+}
+.toc ul { list-style: none; padding-left: 1rem; margin: 0; }
+.toc > ul { padding-left: 0; }
+.toc li { margin: 0.2rem 0; }
+.toc a { color: var(--fg); text-decoration: none; }
+.toc a:hover, .toc a.active { color: var(--accent); }
+
+/* Headings */
+h2 {
+  font-size: 1.1rem; color: var(--fg-strong);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.3rem; margin: 2.5rem 0 1rem;
+}
+h2::before { content: "▌ "; color: var(--accent); }
+h3 { font-size: 0.95rem; color: var(--fg-strong); margin: 1.5rem 0 0.75rem; }
+
+/* Prose */
+p { margin: 0.75rem 0; }
+a { color: var(--accent); }
+strong { color: var(--fg-strong); }
+ul, ol { padding-left: 1.5rem; }
+li { margin: 0.3rem 0; }
+
+/* Code */
+code {
+  font-family: inherit; font-size: 0.85em;
+  background: var(--code-bg); padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+pre {
+  background: var(--code-bg); padding: 1rem;
+  overflow-x: auto; font-size: 0.8rem;
+  border-radius: 3px; margin: 1rem 0;
+}
+pre code { background: none; padding: 0; }
+.code-block { position: relative; margin: 1rem 0; }
+.code-block .cb-filename {
+  position: absolute; top: 0; left: 0; right: 0;
+  background: var(--code-strip); padding: 0.25rem 0.75rem;
+  font-size: 0.7rem; color: var(--muted);
+  border-radius: 3px 3px 0 0;
+}
+.code-block pre { padding-top: 2rem; border-radius: 0 0 3px 3px; }
+
+/* highlight.js token overrides */
+.hljs-keyword, .hljs-selector-tag { color: var(--accent); }
+.hljs-string, .hljs-attr { color: var(--accent-dim); }
+.hljs-comment { color: var(--muted); font-style: italic; }
+.hljs-number, .hljs-literal { color: var(--warn); }
+.hljs-title, .hljs-function { color: var(--fg-strong); }
+.hljs-built_in { color: var(--accent-dim); }
+
+/* Callouts */
+.callout {
+  border-left: 3px solid var(--accent);
+  padding: 0.75rem 1rem; margin: 1rem 0;
+  background: var(--code-bg); font-size: 0.85rem;
+}
+.callout::before {
+  display: block; font-weight: bold; font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 0.3rem;
+}
+.callout.note::before { content: "[ NOTE ]"; color: var(--accent); }
+.callout.tip::before { content: "[ TIP ]"; color: var(--accent-dim); }
+.callout.warn { border-left-color: var(--warn); }
+.callout.warn::before { content: "[ WARN ]"; color: var(--warn); }
+.callout.danger { border-left-color: var(--danger); }
+.callout.danger::before { content: "[ DANGER ]"; color: var(--danger); }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin: 1rem 0; }
+thead { text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; color: var(--accent); }
+th, td { text-align: left; padding: 0.4rem 0.6rem; }
+th { border-bottom: 2px solid var(--rule); }
+td { border-bottom: 1px dashed var(--rule); }
+
+/* Diagrams */
+.diagram { margin: 1.5rem 0; text-align: center; }
+.diagram svg { max-width: 100%; }
+
+/* Pagenav */
+.pagenav {
+  display: flex; justify-content: space-between; align-items: center;
+  border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1rem;
+  font-size: 0.8rem;
+}
+.pagenav a { color: var(--accent); text-decoration: none; }
+.pagenav a:hover { text-decoration: underline; }
+.pagenav .prev::before { content: "← "; }
+.pagenav .next::after { content: " →"; }
+
+/* Footer */
+.footer {
+  display: flex; justify-content: space-between;
+  border-top: 1px solid var(--rule); margin-top: 2rem; padding-top: 0.75rem;
+  font-size: 0.65rem; color: var(--muted);
+}
+
+/* Kbd */
+kbd {
+  font-family: inherit; font-size: 0.8em;
+  background: var(--code-bg); border: 1px solid var(--rule);
+  border-radius: 3px; padding: 0.1em 0.35em;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .page { padding: 1rem; }
+  .manhead { flex-wrap: wrap; gap: 0.5rem; }
+  .search input { width: 10rem; }
+  table { font-size: 0.7rem; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="manhead">
+  <span class="left">SKILLS(7)</span>
+  <span class="mid">DOCS</span>
+  <span class="controls">
+    <span class="search">
+      <input id="doc-search" type="search" placeholder="search… (⌘K)" autocomplete="off" spellcheck="false">
+      <div id="doc-search-results" class="search-results" hidden></div>
+    </span>
+    <select id="doc-theme" class="theme-picker" aria-label="Theme">
+      <option value="paper">paper</option>
+      <option value="solarized">solarized</option>
+      <option value="phosphor">phosphor</option>
+      <option value="amber">amber</option>
+      <option value="auto">auto</option>
+    </select>
+    <span class="right">SKILLS(7)</span>
+  </span>
+</div>
+
+<section class="title-block">
+  <h1>Doc Static HTML<span class="cursor"></span></h1>
+  <p class="tagline">The documentation generation skill — when to use, workflow, output rules.</p>
+  <div class="meta">
+    <span>v1.0</span>
+    <span>2026-05-22</span>
+    <span>agent-skills</span>
+  </div>
+</section>
+
+<nav class="toc" aria-label="On this page">
+  <div class="toc-title">Contents</div>
+  <ul>
+    <li><a href="#what-it-does">What it does</a>
+      <ul>
+        <li><a href="#dsh-features">Features</a></li>
+      </ul>
+    </li>
+    <li><a href="#when-to-use">When to use</a>
+    </li>
+    <li><a href="#workflow">Workflow</a>
+    </li>
+    <li><a href="#output-rules">Output rules</a>
+      <ul>
+        <li><a href="#dsh-content-patterns">Content patterns</a></li>
+        <li><a href="#dsh-cdn">CDN dependencies</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+<h2 id="what-it-does">What it does</h2>
+
+<p>
+  Generates self-contained terminal-retro HTML documentation pages. Each output is a single <code>.html</code> file that works opened from disk, served from any static host, attached to an email, or dropped on a NAS. CSS and JS are inlined — no companion files.
+</p>
+
+<p>
+  The aesthetic is "<code>man</code> rendered to web": monospace-first, high-contrast, paper-and-ink by default — with phosphor green, amber CRT, and Solarized Light one click away in a header picker.
+</p>
+
+<h3 id="dsh-features">Features</h3>
+<ul>
+  <li>Four themes: paper (default light), solarized, phosphor (terminal dark), amber (CRT dark), plus system-auto</li>
+  <li>In-page fuzzy search via <kbd>Cmd</kbd>+<kbd>K</kbd> — works offline, works under <code>file://</code></li>
+  <li>Cross-page search for multi-page builds (same JSON index inlined in every page)</li>
+  <li>Mermaid diagrams (client-side rendering via CDN)</li>
+  <li>highlight.js syntax highlighting (client-side via CDN)</li>
+  <li>Datatype variable font for inline charts and sparklines</li>
+  <li>ASCII callout labels: <code>[ NOTE ]</code>, <code>[ TIP ]</code>, <code>[ WARN ]</code>, <code>[ DANGER ]</code></li>
+</ul>
+
+<h2 id="when-to-use">When to use</h2>
+
+<p>Use when the deliverable is a <strong>standalone documentation artifact</strong> — something to save, share, host, or hand off:</p>
+<ul>
+  <li>Documentation, runbooks, README-style pages, internal wikis</li>
+  <li>API docs, knowledge base entries, release notes, design specs</li>
+  <li>"Make me a doc page for X", "I need a one-pager I can email"</li>
+</ul>
+
+<p><strong>Do not use</strong> for conversational answers, Word docs, slide decks, spreadsheets, or interactive web apps.</p>
+
+<h2 id="workflow">Workflow</h2>
+
+<ol>
+  <li><strong>Decide structure</strong> — single-page (under ~3,000 words, ≤6 sections) or multi-page (chaptered content).</li>
+  <li><strong>Compose body HTML</strong> — headings with <code>id</code>s, code blocks with <code>data-filename</code>, callouts, tables, Mermaid diagrams.</li>
+  <li><strong>Compose structural pieces</strong> — title block, TOC, manhead, search input, theme picker, pagenav.</li>
+  <li><strong>Inline the theme palette</strong> — all four palettes in CSS custom properties.</li>
+  <li><strong>Build search index</strong> — JSON array mapping every h2/h3 to heading text + body snippet, inlined into every page.</li>
+  <li><strong>Include CDN scripts</strong> — highlight.js (if code blocks), Mermaid (if diagrams), Fuse.js (if search).</li>
+  <li><strong>Assemble and save</strong> — substitute placeholders, write to <code>docs/</code>.</li>
+</ol>
+
+<h2 id="output-rules">Output rules</h2>
+
+<div class="callout warn">
+  <p>All generated <code>.html</code> files go in <code>docs/</code> at the project root. This is a hard rule, not a default. Single-page: <code>docs/&lt;slug&gt;.html</code>. Multi-page: <code>docs/&lt;slug&gt;/index.html</code> plus siblings.</p>
+</div>
+
+<h3 id="dsh-content-patterns">Content patterns</h3>
+<table>
+  <thead><tr><th>Element</th><th>Pattern</th></tr></thead>
+  <tbody>
+    <tr><td>Headings</td><td><code>&lt;h2 id="slug"&gt;</code> — every h2/h3 needs an id for TOC</td></tr>
+    <tr><td>Code blocks</td><td><code>&lt;pre&gt;&lt;code class="language-X" data-filename="file.ext"&gt;</code></td></tr>
+    <tr><td>Callouts</td><td><code>&lt;div class="callout note|tip|warn|danger"&gt;</code></td></tr>
+    <tr><td>Diagrams</td><td><code>&lt;div class="diagram mermaid"&gt;</code></td></tr>
+    <tr><td>Charts</td><td><code>&lt;span class="chart"&gt;{l:10,20,35}&lt;/span&gt;</code></td></tr>
+    <tr><td>Keys</td><td><code>&lt;kbd&gt;Cmd&lt;/kbd&gt;</code></td></tr>
+  </tbody>
+</table>
+
+<h3 id="dsh-cdn">CDN dependencies</h3>
+<table>
+  <thead><tr><th>Resource</th><th>When loaded</th><th>Fallback</th></tr></thead>
+  <tbody>
+    <tr><td>Datatype font</td><td>Always</td><td>Chart expressions render as monospace text</td></tr>
+    <tr><td>highlight.js</td><td>Pages with code blocks</td><td>Code renders plain (no colour)</td></tr>
+    <tr><td>Mermaid</td><td>Pages with diagrams</td><td>Source displays as monospace</td></tr>
+    <tr><td>Fuse.js</td><td>Pages with search</td><td>Falls back to substring matching</td></tr>
+  </tbody>
+</table>
+
+
+<nav class="pagenav">
+  <a class="prev" href="mode-skills.html">Mode Skills</a>
+  <a class="home" href="index.html">index</a>
+  <a class="next" href="authoring.html">Authoring</a>
+</nav>
+
+<div class="footer">
+  <span>docs-as-static-html</span>
+  <span>built 2026-05-22</span>
+</div>
+
+</div><!-- .page -->
+
+<script id="search-index" type="application/json">[{"p": "index.html", "pt": "Agent Skills", "i": "overview", "h": "Overview", "b": ">Overview agent-skills is a collection of skills for the Claude Code harness — each one a single SKILL.md file in its own directory at the repo root. There is no build, no test suite, no package manifest. The \"code\" is prompt content; edits"}, {"p": "index.html", "pt": "Agent Skills", "i": "skills-at-a-glance", "h": "Skills at a glance", "b": ">Skills at a glance Skill Triggered by Deliverable Posture critical-review \"review the branch\", \"code review\", \"produce review.md\" review.md read-only test-audit \"audit the tests\", \"would these tests catch a regression\" test-review.md read-"}, {"p": "index.html", "pt": "Agent Skills", "i": "skill-file-contract", "h": "Skill file contract", "b": ">Skill file contract Every SKILL.md must begin with YAML frontmatter: --- name: kebab-case-slug-matching-the-directory description: > One paragraph. What the skill does AND the trigger phrases that should invoke it (\"Use when the user asks "}, {"p": "index.html", "pt": "Agent Skills", "i": "review-suite-architecture", "h": "Review suite architecture", "b": ">Review suite architecture The three review skills form one workflow. verify-work is an orchestrator — it spawns critical-review and test-audit in parallel as sub-agents, then synthesises their two report files into verification-summary.md "}, {"p": "index.html", "pt": "Agent Skills", "i": "repository-layout", "h": "Repository layout", "b": ">Repository layout . ├── CLAUDE.md ├── README.md ├── critical-review/ │ └── SKILL.md ├── test-audit/ │ └── SKILL.md ├── verify-work/ │ └── SKILL.md ├── study-mode/ │ └── SKILL.md ├── go-tutor/ │ └── SKILL.md ├── doc-static-html/ │ └── SKILL"}, {"p": "review-suite.html", "pt": "Review Suite", "i": "critical-review", "h": "critical-review", "b": ">critical-review Adversarial third-party code review of the currently checked-out branch vs the default branch. Produces a written review.md report with severity-tagged findings anchored in file:line references. Read-only — does not modify "}, {"p": "review-suite.html", "pt": "Review Suite", "i": "cr-workflow", "h": "Workflow", "b": ">Workflow Establish scope — discover the default branch, diff against it, handle cross-merge commits by asking the user whether to scope narrowly or review the full diff. Read the diff in full — for non-trivial changes, read the entire file"}, {"p": "review-suite.html", "pt": "Review Suite", "i": "cr-lens", "h": "The review lens (9 categories)", "b": ">The review lens (9 categories) # Category Core question 1 Bugs If I inverted/deleted this line, would any test fail? 2 Security What input reaches this sink without validation? 3 Backwards compat What in-production shape breaks on first ru"}, {"p": "review-suite.html", "pt": "Review Suite", "i": "cr-severity", "h": "Severity scale", "b": ">Severity scale Level Meaning Blocker Ship-stopper. Data loss, security breach, broken build. Major Must fix before merge. Real bug, exploitable weakness. Minor Should fix. Code quality, missing comment, doc drift. Nit Opinion. Take it or l"}, {"p": "review-suite.html", "pt": "Review Suite", "i": "cr-deliverable", "h": "Deliverable", "b": ">Deliverable review.md at the repo root. Sections: Scope, Summary, Findings (grouped by area), What's solid, Convention compliance, Deploy notes, Prioritised recommendations."}, {"p": "review-suite.html", "pt": "Review Suite", "i": "test-audit", "h": "test-audit", "b": ">test-audit Adversarial audit of test quality. The question is not \"is coverage 100%\" but \"would this test fail if the behaviour regressed?\" Produces test-review.md . Read-only."}, {"p": "review-suite.html", "pt": "Review Suite", "i": "ta-lens", "h": "The test-quality lens (10 questions)", "b": ">The test-quality lens (10 questions) # Question 1 Regression test. If I deleted this prod line, would any test fail? 2 Asymmetric branches. Is each if/else/switch path exercised? 3 Loose assertions. Does the test verify which result, not j"}, {"p": "review-suite.html", "pt": "Review Suite", "i": "ta-severity", "h": "Severity", "b": ">Severity Level Meaning High Real behaviour unverifiable. A regression ships silently. Med Thin coverage. A plausible future mistake wouldn't be caught. Low Nits. Loose assertions where tight form is trivial."}, {"p": "review-suite.html", "pt": "Review Suite", "i": "ta-verdict", "h": "Verdict line", "b": ">Verdict line One of: good tests · mixed · coverage-driven (gaps exist)"}, {"p": "review-suite.html", "pt": "Review Suite", "i": "verify-work", "h": "verify-work", "b": ">verify-work Verification pass after another agent completes an implementation task. Orchestrator — spawns critical-review and test-audit in parallel, then synthesises their findings into verification-summary.md . Read-only."}, {"p": "review-suite.html", "pt": "Review Suite", "i": "vw-workflow", "h": "Workflow", "b": ">Workflow Sanity-check the diff exists. Spawn both sub-agents in a single parallel call. Collect their reports and write verification-summary.md . Print a one-line headline to the caller."}, {"p": "review-suite.html", "pt": "Review Suite", "i": "vw-hard-rules", "h": "Hard rules", "b": ">Hard rules Read-only. Only writes the three report files. Does not re-grade — severity counts come verbatim from sub-agents. Does not re-do the review work itself. If one sub-agent fails, still writes the summary with an explicit Failures "}, {"p": "review-suite.html", "pt": "Review Suite", "i": "vw-contract", "h": "Contract between the three skills", "b": ">Contract between the three skills Skill Returns critical-review Blocker / Major / Minor / Nit counts + headline finding test-audit Verdict + High / Med / Low counts + headline finding verify-work Reads those fields verbatim into the summar"}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "study-mode", "h": "study-mode", "b": ">study-mode Explains code, technical decisions, tool choices, and clarification questions at a complete-beginner level so the user learns instead of just receiving answers. Surfaces the decisions hidden inside code — what was chosen, why, w"}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "sm-audience", "h": "Audience", "b": ">Audience Assumes the user is brand new to coding — possibly in their first week. Defines every technical term the first time it appears, in plain language. Never condescending. All code examples are in modern JavaScript."}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "sm-activation", "h": "Activation", "b": ">Activation Mode Trigger phrases One-off explanation \"explain this\", \"elaborate\", \"help me understand\", \"ELI5\", \"walk me through\", \"why did you…\", \"what are my options\", Danish: \"forklar\", \"uddyb\", \"hvorfor\" Study mode ON \"study mode\", \"lea"}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "sm-structure", "h": "Explanation structure", "b": ">Explanation structure The decision in plain words — name what was done. Why this approach — what problem it solves in this specific situation. What else could have been done — 1–2 realistic alternatives and why they weren't chosen. This is"}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "sm-calibration", "h": "Calibration", "b": ">Calibration Depth matches the size of the decision. A one-line change gets one paragraph. A larger choice might get all five sections. In study mode, don't pad small decisions just because the mode is on."}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "sm-language", "h": "Language handling", "b": ">Language handling The user may write in Danish . The skill understands Danish but always responds in English."}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "go-tutor", "h": "go-tutor", "b": ">go-tutor Interactive Socratic Go-learning tutor for project-based learning. The user is writing a Go project to get better at Go and wants help through hints and questions — never through having the answer written for them ."}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "gt-hard-rules", "h": "Hard rules", "b": ">Hard rules Never write the code that solves the user's actual problem. Not in part, not \"just the signature\", not \"a starter\". Never edit the user's Go files. Reading and running ( go build , go test , go vet ) is fine. Point out bugs by l"}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "gt-audience", "h": "Audience", "b": ">Audience An experienced developer in other languages (TypeScript, Swift, Kotlin) — not a programming beginner. Don't explain what a function or struct is. Do explain what's Go-specific: implicit interface satisfaction, value vs pointer rec"}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "gt-socratic", "h": "The Socratic loop", "b": ">The Socratic loop Mirror back the goal — confirm what they're trying to do. Ask a guiding question or point at a clue — a doc page, a stdlib function name, a line number. Hold back the answer — even if obvious. Give bigger hints on repeat "}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "gt-hints", "h": "Hints: point, don't riddle", "b": ">Hints: point, don't riddle Don't make the user guess names. If you'd name the answer in your next sentence anyway, name it now and put the real question into something substantive — predict its behaviour, find where it belongs, compare it "}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "gt-watch-for", "h": "Things to watch for", "b": ">Things to watch for Error handling — swallowing with _ , wrapping with %w , checking with errors.Is Pointer vs value receivers — consistency within a type Interfaces — defined consumer-side, small, not Java-style Goroutines — leaks, contex"}, {"p": "mode-skills.html", "pt": "Mode Skills", "i": "gt-activation", "h": "Activation", "b": ">Activation Action Phrases ON \"go tutor mode\", \"tutor mode\", \"teach me Go\", Danish: \"Go-tutor\", \"lær mig Go\" OFF \"tutor mode off\", \"just write it\", \"I want the answer\", Danish: \"skriv det for mig\""}, {"p": "doc-static-html.html", "pt": "Doc Static HTML", "i": "what-it-does", "h": "What it does", "b": ">What it does Generates self-contained terminal-retro HTML documentation pages. Each output is a single .html file that works opened from disk, served from any static host, attached to an email, or dropped on a NAS. CSS and JS are inlined —"}, {"p": "doc-static-html.html", "pt": "Doc Static HTML", "i": "dsh-features", "h": "Features", "b": ">Features Four themes: paper (default light), solarized, phosphor (terminal dark), amber (CRT dark), plus system-auto In-page fuzzy search via Cmd + K — works offline, works under file:// Cross-page search for multi-page builds (same JSON i"}, {"p": "doc-static-html.html", "pt": "Doc Static HTML", "i": "when-to-use", "h": "When to use", "b": ">When to use Use when the deliverable is a standalone documentation artifact — something to save, share, host, or hand off: Documentation, runbooks, README-style pages, internal wikis API docs, knowledge base entries, release notes, design "}, {"p": "doc-static-html.html", "pt": "Doc Static HTML", "i": "workflow", "h": "Workflow", "b": ">Workflow Decide structure — single-page (under ~3,000 words, ≤6 sections) or multi-page (chaptered content). Compose body HTML — headings with id s, code blocks with data-filename , callouts, tables, Mermaid diagrams. Compose structural pi"}, {"p": "doc-static-html.html", "pt": "Doc Static HTML", "i": "output-rules", "h": "Output rules", "b": ">Output rules All generated .html files go in docs/ at the project root. This is a hard rule, not a default. Single-page: docs/&lt;slug&gt;.html . Multi-page: docs/&lt;slug&gt;/index.html plus siblings."}, {"p": "doc-static-html.html", "pt": "Doc Static HTML", "i": "dsh-content-patterns", "h": "Content patterns", "b": ">Content patterns Element Pattern Headings &lt;h2 id=\"slug\"&gt; — every h2/h3 needs an id for TOC Code blocks &lt;pre&gt;&lt;code class=\"language-X\" data-filename=\"file.ext\"&gt; Callouts &lt;div class=\"callout note|tip|warn|danger\"&gt; Diag"}, {"p": "doc-static-html.html", "pt": "Doc Static HTML", "i": "dsh-cdn", "h": "CDN dependencies", "b": ">CDN dependencies Resource When loaded Fallback Datatype font Always Chart expressions render as monospace text highlight.js Pages with code blocks Code renders plain (no colour) Mermaid Pages with diagrams Source displays as monospace Fuse"}, {"p": "authoring.html", "pt": "Authoring a Skill", "i": "recipe", "h": "Five-step recipe", "b": ">Five-step recipe Adding a new skill to the collection: Create the directory and file mkdir new-skill-name touch new-skill-name/SKILL.md The directory name becomes the skill's identifier. Use kebab-case. Write the frontmatter --- name: new-"}, {"p": "authoring.html", "pt": "Authoring a Skill", "i": "conventions", "h": "Body conventions", "b": ">Body conventions Patterns used across the existing skills (not mandatory, but consistent): Convention Why Numbered ## Steps Gives the agent a clear execution order Shell snippets in steps The agent can run them directly Default-branch disc"}, {"p": "authoring.html", "pt": "Authoring a Skill", "i": "install", "h": "Installation", "b": ">Installation Skills are installed by symlinking or copying into the harness's skill directory: # Symlink (recommended — edits propagate automatically) ln -s /path/to/agent-skills/new-skill-name ~/.claude/skills/new-skill-name # Or copy cp "}, {"p": "authoring.html", "pt": "Authoring a Skill", "i": "testing", "h": "Testing a skill", "b": ">Testing a skill There's no test suite — skills are prompt content. To verify a new skill works: Install it (symlink or copy). Start a new Claude Code session. Use one of the trigger phrases from the description. Verify the agent follows th"}]</script>
+<script>
+(function() {
+  // Pre-paint theme (avoid FOUC)
+  const stored = localStorage.getItem('doc-theme');
+  if (stored) document.documentElement.dataset.theme = stored;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Theme picker
+    const picker = document.getElementById('doc-theme');
+    if (picker) {
+      if (stored) picker.value = stored;
+      picker.addEventListener('change', function() {
+        const v = this.value;
+        document.documentElement.dataset.theme = v;
+        localStorage.setItem('doc-theme', v);
+        // Re-init mermaid if loaded
+        if (window.mermaid && window.mermaid.initialize) {
+          const isDark = v === 'phosphor' || v === 'amber'
+            || ((v === 'auto' || !v) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          window.mermaid.initialize({ theme: isDark ? 'dark' : 'default' });
+        }
+      });
+    }
+
+    // Code-block framing
+    document.querySelectorAll('pre > code[data-filename]').forEach(function(code) {
+      const pre = code.parentElement;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'code-block';
+      const header = document.createElement('div');
+      header.className = 'cb-filename';
+      header.textContent = code.getAttribute('data-filename');
+      pre.parentNode.insertBefore(wrapper, pre);
+      wrapper.appendChild(header);
+      wrapper.appendChild(pre);
+    });
+
+    // TOC scrollspy
+    const tocLinks = document.querySelectorAll('.toc a');
+    if (tocLinks.length) {
+      const headings = [];
+      tocLinks.forEach(function(a) {
+        const id = a.getAttribute('href').replace('#', '');
+        const el = document.getElementById(id);
+        if (el) headings.push({ el: el, link: a });
+      });
+      const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          const match = headings.find(function(h) { return h.el === entry.target; });
+          if (match) {
+            if (entry.isIntersecting) {
+              tocLinks.forEach(function(l) { l.classList.remove('active'); });
+              match.link.classList.add('active');
+            }
+          }
+        });
+      }, { rootMargin: '0px 0px -70% 0px' });
+      headings.forEach(function(h) { observer.observe(h.el); });
+    }
+
+    // Search
+    const searchInput = document.getElementById('doc-search');
+    const searchResults = document.getElementById('doc-search-results');
+    const indexEl = document.getElementById('search-index');
+    if (searchInput && searchResults && indexEl) {
+      const index = JSON.parse(indexEl.textContent);
+      let fuse = null;
+      if (window.Fuse) {
+        fuse = new Fuse(index, {
+          keys: [{name:'h',weight:2},{name:'b',weight:1},{name:'pt',weight:1.5}],
+          threshold: 0.4, ignoreLocation: true,
+          minMatchCharLength: 2, includeMatches: true
+        });
+      }
+      let activeIdx = -1;
+
+      function search(q) {
+        if (q.length < 2) { searchResults.hidden = true; return; }
+        let results;
+        if (fuse) {
+          results = fuse.search(q).slice(0, 10).map(function(r) { return r.item; });
+        } else {
+          const lq = q.toLowerCase();
+          results = index.filter(function(item) {
+            return item.h.toLowerCase().includes(lq)
+              || item.b.toLowerCase().includes(lq)
+              || (item.pt && item.pt.toLowerCase().includes(lq));
+          }).slice(0, 10);
+        }
+        if (!results.length) { searchResults.hidden = true; return; }
+        searchResults.innerHTML = results.map(function(r) {
+          const href = (r.p ? r.p : '') + '#' + r.i;
+          const page = r.pt ? '<span class="sr-page">' + r.pt + '</span> ' : '';
+          return '<a href="' + href + '">' + page + r.h + '</a>';
+        }).join('');
+        searchResults.hidden = false;
+        activeIdx = -1;
+      }
+
+      searchInput.addEventListener('input', function() { search(this.value); });
+      searchInput.addEventListener('keydown', function(e) {
+        const links = searchResults.querySelectorAll('a');
+        if (e.key === 'Escape') { searchInput.value = ''; searchResults.hidden = true; searchInput.blur(); }
+        if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, links.length - 1); links.forEach(function(l,i){ l.classList.toggle('active', i===activeIdx); }); }
+        if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); links.forEach(function(l,i){ l.classList.toggle('active', i===activeIdx); }); }
+        if (e.key === 'Enter' && activeIdx >= 0 && links[activeIdx]) { window.location = links[activeIdx].href; }
+      });
+
+      // Cmd/Ctrl-K global binding
+      document.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+          e.preventDefault(); searchInput.focus(); searchInput.select();
+        }
+      });
+    }
+  });
+})();
+</script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const t = document.documentElement.getAttribute('data-theme');
+  const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark = t === 'phosphor' || t === 'amber'
+    || ((t === 'auto' || !t) && sysDark);
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: isDark ? 'dark' : 'default',
+    themeVariables: { fontFamily: '"JetBrains Mono", monospace' },
+    securityLevel: 'strict',
+  });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7/dist/fuse.min.js"></script>
+</body>
+</html>

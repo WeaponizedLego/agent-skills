@@ -40,10 +40,12 @@ No external tools required. See `references/content-patterns.md` for a longer wa
 
 ### Step 1: Decide page structure (single-page vs multi-page)
 
-- **Single-page** if: under ~3,000 words AND at most ~6 top-level (`##`) sections AND the content reads as one continuous narrative.
-- **Multi-page** if: over 3,000 words OR more than 6 top-level sections OR the content is clearly chaptered (e.g., multiple distinct topics that wouldn't share a TOC well).
+**Default to multi-page for real documentation.** A well-structured multi-page set with a nav-grid index is almost always better than a single long page — it's faster to navigate, easier to share individual sections, and feels more like a polished product.
 
-When in doubt, prefer single-page — the sticky search and TOC keep long single pages navigable. Split only when the user implicitly expects chapters.
+- **Single-page** if: under ~1,500 words AND at most 3-4 top-level (`##`) sections AND the content reads as one continuous narrative (e.g., a short runbook, a one-pager, a quick reference card).
+- **Multi-page** if: anything that could reasonably be split into named chapters — architecture docs, API references, onboarding guides, design specs, anything with 5+ top-level sections. Each chapter becomes its own `.html` file; the index page uses a `nav-grid` to link them all.
+
+When in doubt, go multi-page. The nav-grid index plus cross-page search makes large sets easy to navigate.
 
 ### Step 2: Compose the body HTML
 
@@ -56,7 +58,7 @@ Use these patterns (full reference in `references/content-patterns.md`):
 <h3 id="components">Components</h3>
 ```
 
-**Code blocks** — use `data-filename` for the header strip; the runtime wraps it in the `.code-block` frame automatically:
+**Code blocks** — use `data-filename` for the header strip; the runtime wraps the `<pre>` in a `.code-block` div with a `.strip` header automatically:
 
 ```html
 <pre><code class="language-python" data-filename="api.py">def hello():
@@ -93,6 +95,31 @@ See `references/datatype-syntax.md` for the full expression reference.
 ```
 
 **Tables** — standard HTML tables. The CSS styles header rows in accent colour with uppercase headers and dashed row separators. Datatype charts in cells render beautifully.
+
+**Navigation grid** — the index page of every multi-page set should use a `nav-grid` instead of a plain list. Two-column card grid; each card links to a chapter with a title and short description:
+
+```html
+<div class="nav-grid">
+  <a href="architecture.html">
+    <div class="nav-title">Architecture</div>
+    <div class="nav-desc">System diagram, deployment model, data flow</div>
+  </a>
+  <a href="api.html">
+    <div class="nav-title">API Reference</div>
+    <div class="nav-desc">All endpoints, auth, request/response shapes</div>
+  </a>
+  <a href="development.html">
+    <div class="nav-title">Development Guide</div>
+    <div class="nav-desc">Local setup, testing, conventions</div>
+  </a>
+  <a href="operations.html">
+    <div class="nav-title">Operations</div>
+    <div class="nav-desc">Deployment, CI/CD, runbooks</div>
+  </a>
+</div>
+```
+
+The grid collapses to a single column on mobile. Always include this on the index page — it's the primary way users navigate the doc set.
 
 **Keyboard keys** — `<kbd>Cmd</kbd>` + `<kbd>K</kbd>` for keyboard shortcuts.
 
@@ -196,49 +223,20 @@ The runtime hydrates the selected option from `localStorage["doc-theme"]` on loa
 
 For single-page builds, leave it empty.
 
-### Step 3a: Inline the theme palette
+### Step 3a: Inline the CSS
 
-Paper light is the **default** — `<html>` has no `data-theme` attribute unless the user has picked one. The runtime sets it from `localStorage["doc-theme"]` before paint to avoid a flash, so persisted choice wins on every page in a multi-page set.
+Read `assets/styles.css` verbatim and substitute it into `{{CSS}}`. The file contains all four palettes, all component styles, and the `nav-grid` and `pagenav` helpers. Do not copy-paste fragments — read and use the whole file.
 
-Inline all four palettes plus the `auto` resolver into `{{CSS}}`. The base `:root` block holds paper; the others override via `data-theme`:
+Key design decisions already baked in (do not override them):
 
-```css
-/* Paper (default light) */
-:root {
-  --bg:#F2EFE6; --fg:#1F2A1B; --fg-strong:#0B0F0A; --muted:#5A6B53;
-  --accent:#1E6E15; --accent-dim:#3E8A38; --warn:#7A5A00; --danger:#A22020;
-  --rule:#CFC9B8; --code-bg:#EAE6D8; --code-strip:#DAD4C1;
-}
-/* Solarized Light (Ethan Schoonover) */
-:root[data-theme="solarized"] {
-  --bg:#FDF6E3; --fg:#657B83; --fg-strong:#073642; --muted:#93A1A1;
-  --accent:#B58900; --accent-dim:#859900; --warn:#CB4B16; --danger:#DC322F;
-  --rule:#EEE8D5; --code-bg:#EEE8D5; --code-strip:#E4DCC4;
-}
-/* Phosphor green (terminal dark) */
-:root[data-theme="phosphor"] {
-  --bg:#0B0F0A; --fg:#C8E6C2; --fg-strong:#E8F3E4; --muted:#6E8A66;
-  --accent:#7CFF6F; --accent-dim:#3E8A38; --warn:#FFC857; --danger:#FF6B6B;
-  --rule:#1E2A1B; --code-bg:#0F1610; --code-strip:#16201A;
-}
-/* Amber CRT (dark, amber-on-brown) */
-:root[data-theme="amber"] {
-  --bg:#1A1208; --fg:#F0CC9F; --fg-strong:#FFE4B5; --muted:#8C6F47;
-  --accent:#FFB000; --accent-dim:#A87400; --warn:#FF8C00; --danger:#FF5050;
-  --rule:#2A1F10; --code-bg:#1F1810; --code-strip:#261C10;
-}
-/* Auto — resolves to phosphor on dark systems, paper on light */
-:root[data-theme="auto"] { /* paper colours (already default) */ }
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="auto"] {
-    --bg:#0B0F0A; --fg:#C8E6C2; --fg-strong:#E8F3E4; --muted:#6E8A66;
-    --accent:#7CFF6F; --accent-dim:#3E8A38; --warn:#FFC857; --danger:#FF6B6B;
-    --rule:#1E2A1B; --code-bg:#0F1610; --code-strip:#16201A;
-  }
-}
-```
-
-All other CSS rules in the page should reference variables only (`var(--bg)`, `var(--accent)`, etc.) — no hard-coded colours — so a single attribute flip restyles the whole page. Highlight.js token classes (`.hljs-keyword`, `.hljs-string`, etc.) should also be expressed in terms of `--accent`, `--fg`, `--muted`, `--warn` so code blocks recolour with the theme.
+- **Sticky manhead** (`position:sticky; top:0; z-index:50`) — the header bar stays visible when scrolling.
+- **`.wrap` container** — all body content sits inside a max-width `980px` centered div; the manhead sits outside it (full-width, sticky).
+- **`scroll-margin-top:60px`** on `h2`/`h3` — anchors land below the sticky header, not behind it.
+- **h2 gets `▌` in `--accent`, h3 gets `▌` in `--accent-dim`** — the hierarchy is visually distinct.
+- **h4** is styled as an uppercase label in `--accent` (useful for sub-subsections and table captions).
+- **`.code-block .strip`** — the runtime creates this header element; CSS styles it as the filename bar above the code.
+- **`.docfoot`** — the footer class (not `.footer`).
+- All CSS variables (`var(--bg)`, `var(--accent)`, etc.) — no hard-coded colours — so a single `data-theme` attribute flip restyles the whole page. Highlight.js token classes are also expressed in terms of these variables.
 
 ### Step 3b: Build and inline the search index
 
@@ -327,12 +325,12 @@ Concatenate the needed ones into `{{SCRIPTS}}` (with a blank line between each).
 
 #### What `{{JS}}` (the inline runtime) does
 
-The runtime is inlined as a `<script>` near the end of `<body>`. Its responsibilities:
+Read `assets/runtime.js` verbatim and substitute it into `{{JS}}`. The file is a self-contained IIFE. Its responsibilities:
 
-1. **Pre-paint theme** — read `localStorage["doc-theme"]`; if set, write `document.documentElement.dataset.theme = value` before the rest of the runtime runs (no FOUC). Sync the `<select id="doc-theme">` value to match. On `change`, persist back to `localStorage` and update `dataset.theme` (and call `mermaid.initialize` again if Mermaid was loaded, so diagrams recolour).
-2. **Code-block frame** — for every `<pre><code data-filename="...">`, wrap the parent `<pre>` in a `.code-block` div so the filename header strip is rendered consistently (the CSS does the rest).
-3. **TOC scrollspy** — observe `<h2>`/`<h3>` and toggle `.active` on the matching `.toc a` as the user scrolls. IntersectionObserver, no scroll-event throttling needed.
-4. **Search** — parse `JSON.parse(document.getElementById('search-index').textContent)`. If `window.Fuse` exists, construct `new Fuse(index, {keys:[{name:'h',weight:2},{name:'b',weight:1},{name:'pt',weight:1.5}], threshold:0.4, ignoreLocation:true, minMatchCharLength:2, includeMatches:true})`. Otherwise, fall back to a `filter`-based substring matcher over the same fields. On every `input` event with ≥2 chars, render up to 10 ranked rows into `#doc-search-results`; each row links to `${p}#${i}` (or just `#${i}` when `p` is empty). Bind `Cmd/Ctrl-K` globally to focus the input, `Esc` to clear+blur, and arrow-up/arrow-down + Enter to navigate the results list.
+1. **Pre-paint theme** — the template's `<head>` contains a one-liner that reads `localStorage["doc-theme"]` and sets `data-theme` immediately to prevent FOUC. The runtime then syncs the `<select>` value and wires the `change` handler to persist back and re-init Mermaid (stored as `window.__mermaid`) so diagrams recolour on theme switch.
+2. **Code-block frame** — for every `<pre><code data-filename="...">`, wraps the parent `<pre>` in a `.code-block` div and prepends a `.strip` header element containing the filename. The CSS styles it as the filename bar.
+3. **TOC scrollspy** — observes `<h2>`/`<h3>` via IntersectionObserver and toggles `.active` on the matching `.toc a` as the user scrolls.
+4. **Search** — reads the inline `<script id="search-index">` JSON. If `window.Fuse` is loaded, uses fuzzy matching; otherwise falls back to substring filter. Renders up to 10 results into `#doc-search-results`; rows link to `${p}#${i}` (cross-page) or `#${i}` (same-page). Keyboard: `Cmd/Ctrl-K` focuses, `Esc` clears, arrow keys + `Enter` navigate results.
 
 ### Step 5: Assemble and save
 
@@ -406,13 +404,16 @@ If `docs/<slug>.html` already exists, overwrite it (the assumption is that the u
 
 ### Step 6: Present
 
-Use `present_files` with the generated `.html` file(s). The tool copies the file from `<project-root>/docs/` into the user-visible outputs directory, so the user sees the doc immediately — but the canonical, on-disk copy lives in `docs/`, where it stays after the conversation ends.
+Tell the user where the file(s) were written (path relative to project root) so they can open them directly. For multi-page output, lead with the index page path.
 
-For multi-page output, present `index.html` first so the user lands on the entry page.
+## Worked examples
 
-## A complete worked example
+Two real examples live in `examples/`:
 
-See `examples/single-page.html` for a fully composed page. Open it in a browser to see what the design system produces; read its source to see the exact HTML patterns to follow.
+- **`examples/example_1_docs/ts-ooono-backend-support/`** — canonical multi-page set (index + 6 chapter pages). Read `index.html` for the nav-grid index pattern and `architecture.html` for a typical chapter page. This is the target quality for multi-page output.
+- **`examples/example_2_docs/pantry-architecture.html`** — a dense single-page design doc. Good reference for TOC depth, Mermaid diagrams, tables, and callout usage.
+
+Open these in a browser to see the design system in action; read their source to see the exact HTML patterns to follow.
 
 ## A note on browser-side dependencies
 
